@@ -237,6 +237,7 @@ class Timer {
     // Clean up
   }
 
+  // Increase/Add extra time to the timer.
   add(t) {
 
   }
