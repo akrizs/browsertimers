@@ -1,7 +1,3 @@
-const startStopBtn = document.getElementById("startstop");
-const resetBtn = document.getElementById("reset");
-const timeInput = document.getElementById("timeinp");
-
 /*********
  **
  ** EVENT MIXIN BEGINS
@@ -65,20 +61,26 @@ const eventMixin = {
 
 
 class Timers {
-  constructor(settings = {
+  constructor(opts = {
     ui: false,
-    inject: String
+    inject: String,
+    cleanUp: false,
   }) {
     // create Timers group ID
     this.ID = this.constructor.genID(this);
     this.__timers = [];
 
-    if (settings.ui) {
+    if (opts.ui) {
       this.DOMwrap = this.constructor.createDOMCanvas(this.ID);
 
-      let injector = document.querySelectorAll(`.${settings.inject}`)[0];
+      let injector = document.querySelectorAll(`.${opts.inject}`)[0];
       injector.insertAdjacentElement('beforeend', this.DOMwrap);
     }
+    this.opts = {
+      cleanup: opts.cleanUp
+    }
+    this.currentTimer = undefined;
+
     // generate all of the events for Other Timers.
     this.on('timer:delete', this.deleteTimer);
     //
@@ -98,8 +100,17 @@ class Timers {
     return base;
   }
 
-  deleteTimer(timer) {
-    this.__timers.indexOf(timer);
+  delete(timer) {
+    if (!timer) {
+      timer = this.currentTimer;
+    }
+    if (timer.opts.ui) {
+      timer.theme.destroy();
+    }
+    this.__timers.splice(this.__timers.indexOf(timer), 1);
+    this.__currentTimer = undefined;
+
+    return;
   }
 
   add(timer) {
@@ -112,6 +123,21 @@ class Timers {
 
   timer(tID) {
     return this.__timers[tID];
+  }
+
+  get currentTimer() {
+    if (!this.__currentTimer) {
+      if (this.__timers.length === 1) {
+        this.__currentTimer = this.__timers[0];
+        return this.__currentTimer;
+      }
+    } else {
+      return this.__currentTimer;
+    }
+  }
+
+  set currentTimer(t) {
+    this.__currentTimer = t;
   }
 
   get all() {
@@ -158,9 +184,10 @@ class Timer {
     };
     this.label = '';
     this.currentTime = 0;
+    this.addedTime = 0;
     this.ticker = undefined;
     // Create a flag to show if expired or active.
-    this.expired = false;
+    this.ended = false;
 
     this.theme = opts.theme ? opts.theme(this) : this.constructor.defaultTheme(this);
 
@@ -199,12 +226,15 @@ class Timer {
   }
 
   start() {
-
+    if (this.ended) {
+      // The timer has ended so we should not start it again, reset it first.
+      return
+    }
     this.ticker = setInterval(() => {
       this.theme.update();
 
-      if (this.currentTime == 0) {
-        this.stop();
+      if (this.currentTime <= 0) {
+        this.done();
       }
 
       this.currentTime -= 1000;
@@ -214,31 +244,62 @@ class Timer {
   }
 
   reset() {
+
+    clearInterval(this.ticker);
+
     this.currentTime = this.originalSetTime;
+    if (this.opts.ui) {
+      this.theme.update();
+      this.theme.reset();
+    }
+
   }
 
   pause() {
-    // Grab the currentTime and kill the ticker
+    clearInterval(this.ticker);
   }
 
   stop() {
     // Stop the countdown
     clearInterval(this.ticker);
 
-    this.expired = true;
+    this.ended = true;
 
-    if (this.opts.ui) {
-
+    if (this.opts.ui && this.TIMERMGMR.opts.cleanUp) {
+      // clear up the DOM.
     }
     // Clean up
   }
 
   done() {
-    // Clean up
+    // Timer finished all the way down to 00:00.
+    clearInterval(this.ticker);
+    this.ended = true;
+    if (this.opts.ui) {
+      // if there is an ui trigger the decided UI changes.
+
+      if (this.TIMERMGMR.opts.cleanup) {
+        // if the cleanup flag is set then clean up the DOM;
+      }
+    }
+    console.log(this);
   }
 
   // Increase/Add extra time to the timer.
   add(t) {
+    let v = this.constructor.validateStringInput(t);
+
+    if (v) {
+      v = this.constructor.parseTimeInput(this.constructor.splitStringInput(t));
+
+      this.addedTime += v;
+      this.currentTime += v;
+    } else {
+      throw `${t} is invalid input!`;
+    }
+  }
+
+  destroy() {
 
   }
 
@@ -285,6 +346,10 @@ class Timer {
         const base = document.createElement('div');
         base.classList.add('backstrip');
 
+        base.addEventListener('click', (e) => {
+          this.p.TIMERMGMR.currentTimer = this.p;
+        })
+
         const timestrip = document.createElement('div');
         timestrip.classList.add('timestrip');
         timestrip.id = `${this.p.ID}-timestrip`;
@@ -308,14 +373,16 @@ class Timer {
       },
 
       update() {
-        let str = this.p.constructor.msToMinSecStr(this.p.currentTime);
-        this.timedisplay.innerText = str;
-        let prcntSize = (this.p.currentTime / this.p.originalSetTime) * 100;
-        this.timestrip.style.width = `${prcntSize}%`;
-
         let timeTxtWidth = this.timedisplay.getBoundingClientRect().width;
         let barWidth = this.timestrip.getBoundingClientRect().width;
 
+        let str = this.p.constructor.msToMinSecStr(this.p.currentTime);
+        this.timedisplay.innerText = str;
+        let prcntSize = (this.p.currentTime / (this.p.originalSetTime + this.p.addedTime)) * 100;
+        this.timestrip.style.width = `${prcntSize}%`;
+
+
+        console.log("Text Width: ", timeTxtWidth, "\nBar Width: ", barWidth);
         if (barWidth <= (timeTxtWidth + 100)) {
           if (this.timedisplay.dataset.hasOwnProperty("inside")) {
             delete this.timedisplay.dataset.inside;
@@ -324,7 +391,9 @@ class Timer {
       },
 
       reset() {
-
+        if (!this.timedisplay.dataset.hasOwnProperty("inside")) {
+          this.timedisplay.dataset.inside = '';
+        }
       },
 
       pause() {
@@ -336,7 +405,7 @@ class Timer {
       },
 
       destroy() {
-
+        this.base.parentNode.removeChild(this.base);
       },
 
       divideTime(ms) {
@@ -374,6 +443,10 @@ const testTheme = () => {
       console.log("TestTheme:Update");
     },
 
+    pause() {
+
+    },
+
     stop() {
       console.log("TestTheme:Stop");
     },
@@ -384,22 +457,20 @@ const testTheme = () => {
   }
 }
 
-window.timers = new Timers(settings = {
-  ui: true,
-  inject: 'justacenteredwrapper'
-});
+// window.timers = new Timers(settings = {
+//   ui: true,
+//   inject: 'justacenteredwrapper'
+// });
 
-const timer = new Timer('00:10', options = {
-  type: 'bar',
-  parent: window.timers,
-  ui: true,
-  // theme: testTheme
-});
+// const timer = new Timer('00:10', options = {
+//   type: 'bar',
+//   parent: window.timers,
+//   ui: true,
+//   // theme: testTheme
+// });
 
-const timer22 = new Timer('01:15', options = {
-  type: 'bar',
-  parent: window.timers,
-  ui: true
-});
-
-console.log(window.timers);
+// const timer22 = new Timer('01:15', options = {
+//   type: 'bar',
+//   parent: window.timers,
+//   ui: true
+// });
