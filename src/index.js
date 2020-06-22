@@ -171,10 +171,11 @@ class Timer {
 
   // dur = duration of the timer
   // type = what kind of graphical interface to display etc.
-  constructor(dur, opts = {
+  constructor(dur, label, opts = {
     parent,
     ui,
-    theme
+    theme,
+    interval
   }) {
     // Generate a custom ID!
     // ATTACH that ID to the current input.
@@ -182,12 +183,13 @@ class Timer {
     this.opts = {
       ui: opts.ui
     };
-    this.label = '';
+    this.label = label ? label : false;
     this.currentTime = 0;
     this.addedTime = 0;
     this.ticker = undefined;
     // Create a flag to show if expired or active.
     this.ended = false;
+    this.interval = opts.interval ? opts.interval : 500;
 
     this.theme = opts.theme ? opts.theme(this) : this.constructor.defaultTheme(this);
 
@@ -226,21 +228,23 @@ class Timer {
   }
 
   start() {
+
     if (this.ended) {
       // The timer has ended so we should not start it again, reset it first.
       return
     }
     this.ticker = setInterval(() => {
-      this.theme.update();
+      this.currentTime -= this.interval;
+
+      if (this.opts.ui) {
+        this.theme.update();
+      }
 
       if (this.currentTime <= 0) {
         this.done();
       }
 
-      this.currentTime -= 1000;
-
-
-    }, 1000);
+    }, this.interval);
   }
 
   reset() {
@@ -277,7 +281,7 @@ class Timer {
     this.ended = true;
     if (this.opts.ui) {
       // if there is an ui trigger the decided UI changes.
-
+      this.theme.done();
       if (this.TIMERMGMR.opts.cleanup) {
         // if the cleanup flag is set then clean up the DOM;
       }
@@ -341,6 +345,7 @@ class Timer {
 
   static defaultTheme(parent) {
     return {
+      uiTicker: undefined,
       p: parent,
       generate() {
         const base = document.createElement('div');
@@ -381,6 +386,10 @@ class Timer {
         let prcntSize = (this.p.currentTime / (this.p.originalSetTime + this.p.addedTime)) * 100;
         this.timestrip.style.width = `${prcntSize}%`;
 
+        if (this.p.currentTime % 30000 === 0) {
+          console.log("Every thirty seconds");
+        }
+
 
         console.log("Text Width: ", timeTxtWidth, "\nBar Width: ", barWidth);
         if (barWidth <= (timeTxtWidth + 100)) {
@@ -402,6 +411,10 @@ class Timer {
 
       stop() {
 
+      },
+
+      done() {
+        console.log(this.p);
       },
 
       destroy() {

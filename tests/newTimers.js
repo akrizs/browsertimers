@@ -1,4 +1,4 @@
-window.timers = new Timers(settings = {
+window.timers = new Timers(opts = {
   ui: true,
   inject: "justacenteredwrapper"
 });
@@ -16,10 +16,10 @@ const addExtraTimeBtn = document.getElementById("addExtraTime");
 
 
 addCntBtn.addEventListener("click", (e) => {
-  new Timer(timerInput.value, options = {
-    type: "bar",
+  new Timer(timerInput.value, "Something to work for!", opts = {
     parent: window.timers,
     ui: true,
+    interval: 50
   });
 });
 
@@ -30,7 +30,7 @@ rmCntBtn.addEventListener("click", (e) => {
 });
 
 startBtn.addEventListener("click", (e) => {
-  window.timers.currentTimer.start();
+  window.timers.currentTimer.start(500);
 });
 
 stopBtn.addEventListener("click", (e) => {
