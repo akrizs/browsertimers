@@ -16,10 +16,15 @@ const addExtraTimeBtn = document.getElementById("addExtraTime");
 
 
 addCntBtn.addEventListener("click", (e) => {
-  new Timer(timerInput.value, "Something to work for!", opts = {
-    parent: window.timers,
+  // new Timer(timerInput.value, "Something to work for!", opts = {
+  //   // parent: window.timers,
+  //   ui: true,
+  //   interval: 250
+  // });
+  timers.newTimer(timerInput.value, "Something to work for!", opts = {
+    // parent: window.timers,
     ui: true,
-    interval: 50
+    interval: 250
   });
 });
 

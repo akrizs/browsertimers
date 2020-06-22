@@ -139,6 +139,7 @@ table {
   --strip-color: rgba(53, 85, 122, 1);
   --time-color-inside: rgba(255, 255, 255, 1);
   --time-color-outside: rgba(53, 85, 122, 1);
+  --time-color-blinky: rgba(252, 96, 10, 1.00);
 }
 
 body {
@@ -189,7 +190,6 @@ body {
   height: 100%;
   background: var(--strip-color);
   -webkit-transition: width 1s linear;
-  -o-transition: width 1s linear;
   transition: width 1s linear;
 }
 
@@ -200,15 +200,12 @@ body {
   font-size: 40px;
   color: white;
   -webkit-transform: translate(0, 0);
-      -ms-transform: translate(0, 0);
           transform: translate(0, 0);
   -webkit-transition: right 1s linear, -webkit-transform .2s linear;
   transition: right 1s linear, -webkit-transform .2s linear;
-  -o-transition: transform .2s linear, right 1s linear;
   transition: transform .2s linear, right 1s linear;
   transition: transform .2s linear, right 1s linear, -webkit-transform .2s linear;
   -webkit-transform: translate(-101%, 0);
-      -ms-transform: translate(-101%, 0);
           transform: translate(-101%, 0);
   color: var(--time-color-outside);
 }
@@ -216,8 +213,11 @@ body {
 .backstrip .dpTime[data-inside] {
   color: var(--time-color-inside);
   -webkit-transform: translate(10px, 0);
-      -ms-transform: translate(10px, 0);
           transform: translate(10px, 0);
+}
+
+.backstrip .dpTime.blinky {
+  color: var(--time-color-blinky);
 }
 
 .timers-group {

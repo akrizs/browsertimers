@@ -142,6 +142,8 @@ table {
 
   --time-color-inside: rgba(255, 255, 255, 1);
   --time-color-outside: rgba(53, 85, 122, 1);
+
+  --time-color-blinky: rgba(252, 96, 10, 1.00);
 }
 
 body {
@@ -199,6 +201,11 @@ body {
     &[data-inside] {
       color: var(--time-color-inside);
       transform: translate(10px, 0);
+    }
+
+    &.blinky {
+      color: var(--time-color-blinky);
+      transition: color .1s ease-in-out;
     }
   }
 }

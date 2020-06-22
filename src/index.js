@@ -53,112 +53,6 @@ const eventMixin = {
 
 /*********
  **
- ** TIMERS GROUP CLASS BEGINS
- **
- **
- **
- **********/
-
-
-class Timers {
-  constructor(opts = {
-    ui: false,
-    inject: String,
-    cleanUp: false,
-  }) {
-    // create Timers group ID
-    this.ID = this.constructor.genID(this);
-    this.__timers = [];
-
-    if (opts.ui) {
-      this.DOMwrap = this.constructor.createDOMCanvas(this.ID);
-
-      let injector = document.querySelectorAll(`.${opts.inject}`)[0];
-      injector.insertAdjacentElement('beforeend', this.DOMwrap);
-    }
-    this.opts = {
-      cleanup: opts.cleanUp
-    }
-    this.currentTimer = undefined;
-
-    // generate all of the events for Other Timers.
-    this.on('timer:delete', this.deleteTimer);
-    //
-  }
-
-  static genID(tg) {
-    if (!(tg instanceof this)) {
-      throw `${tg} is not an instance of ${this.name}`;
-    }
-    return Math.random().toString(36).slice(-6);
-  }
-
-  static createDOMCanvas(id) {
-    const base = document.createElement('div');
-    base.classList.add('timers-group', `${id}-group`);
-    base.id = `${id}-wrapper`;
-    return base;
-  }
-
-  delete(timer) {
-    if (!timer) {
-      timer = this.currentTimer;
-    }
-    if (timer.opts.ui) {
-      timer.theme.destroy();
-    }
-    this.__timers.splice(this.__timers.indexOf(timer), 1);
-    this.__currentTimer = undefined;
-
-    return;
-  }
-
-  add(timer) {
-    if (timer instanceof Timer) {
-      this.__timers.push(timer);
-    } else {
-      return false;
-    }
-  }
-
-  timer(tID) {
-    return this.__timers[tID];
-  }
-
-  get currentTimer() {
-    if (!this.__currentTimer) {
-      if (this.__timers.length === 1) {
-        this.__currentTimer = this.__timers[0];
-        return this.__currentTimer;
-      }
-    } else {
-      return this.__currentTimer;
-    }
-  }
-
-  set currentTimer(t) {
-    this.__currentTimer = t;
-  }
-
-  get all() {
-    return this.__timers;
-  }
-
-  get events() {
-    return this._eventHandlers;
-  }
-
-
-}
-
-Object.assign(Timers.prototype, eventMixin);
-
-/**********
- *** TIMERS GROUP CLASS ENDS
- **********/
-
-/*********
- **
  ** TIMER CLASS BEGINS
  **
  **
@@ -166,11 +60,7 @@ Object.assign(Timers.prototype, eventMixin);
  **********/
 
 class Timer {
-  static STD_DURATION = '01:00';
-  static STD_TYPE = 'bar';
 
-  // dur = duration of the timer
-  // type = what kind of graphical interface to display etc.
   constructor(dur, label, opts = {
     parent,
     ui,
@@ -187,6 +77,7 @@ class Timer {
     this.currentTime = 0;
     this.addedTime = 0;
     this.ticker = undefined;
+    this.running = false;
     // Create a flag to show if expired or active.
     this.ended = false;
     this.interval = opts.interval ? opts.interval : 500;
@@ -229,10 +120,11 @@ class Timer {
 
   start() {
 
-    if (this.ended) {
-      // The timer has ended so we should not start it again, reset it first.
+    if (this.ended || this.running) {
+      // The timer has ended or is already running so we should not start it again, reset it first.
       return
     }
+    this.running = true;
     this.ticker = setInterval(() => {
       this.currentTime -= this.interval;
 
@@ -250,8 +142,10 @@ class Timer {
   reset() {
 
     clearInterval(this.ticker);
-
+    this.running = false;
+    this.ended = false;
     this.currentTime = this.originalSetTime;
+
     if (this.opts.ui) {
       this.theme.update();
       this.theme.reset();
@@ -261,6 +155,7 @@ class Timer {
 
   pause() {
     clearInterval(this.ticker);
+    this.running = false;
   }
 
   stop() {
@@ -268,6 +163,7 @@ class Timer {
     clearInterval(this.ticker);
 
     this.ended = true;
+    this.running = false;
 
     if (this.opts.ui && this.TIMERMGMR.opts.cleanUp) {
       // clear up the DOM.
@@ -386,17 +282,23 @@ class Timer {
         let prcntSize = (this.p.currentTime / (this.p.originalSetTime + this.p.addedTime)) * 100;
         this.timestrip.style.width = `${prcntSize}%`;
 
+        if (prcntSize <= 15) {
+          if (this.timedisplay.dataset.hasOwnProperty("inside")) {
+            delete this.timedisplay.dataset.inside;
+          }
+        }
+
         if (this.p.currentTime % 30000 === 0) {
           console.log("Every thirty seconds");
         }
 
 
-        console.log("Text Width: ", timeTxtWidth, "\nBar Width: ", barWidth);
-        if (barWidth <= (timeTxtWidth + 100)) {
-          if (this.timedisplay.dataset.hasOwnProperty("inside")) {
-            delete this.timedisplay.dataset.inside;
-          }
-        }
+        // console.log("Text Width: ", timeTxtWidth, "\nBar Width: ", barWidth);
+        // if (barWidth <= (timeTxtWidth + 100)) {
+        //   if (this.timedisplay.dataset.hasOwnProperty("inside")) {
+        //     delete this.timedisplay.dataset.inside;
+        //   }
+        // }
       },
 
       reset() {
@@ -414,7 +316,19 @@ class Timer {
       },
 
       done() {
-        console.log(this.p);
+        let interval = 150;
+        let per = 5000;
+
+
+        let blink = setInterval(() => {
+          this.timedisplay.classList.toggle('blinky');
+
+          per -= interval;
+
+          if (per <= 0) {
+            clearInterval(blink);
+          }
+        }, interval);
       },
 
       destroy() {
@@ -428,10 +342,138 @@ class Timer {
   }
 }
 
-Object.assign(Timer.prototype, eventMixin);
-
 /**********
  *** TIMER CLASS ENDS
+ **********/
+
+/*********
+ **
+ ** TIMERS GROUP CLASS BEGINS
+ **
+ **
+ **
+ **********/
+
+
+class Timers {
+  static Timer = Timer;
+
+  constructor(opts = {
+    ui: false,
+    inject: String,
+    cleanUp: false,
+  }) {
+    // create Timers group ID
+    this.ID = this.constructor.genID(this);
+    this.__timers = [];
+
+    if (opts.ui) {
+      this.DOMwrap = this.constructor.createDOMCanvas(this.ID);
+
+      let injector = document.querySelectorAll(`.${opts.inject}`)[0];
+      injector.insertAdjacentElement('beforeend', this.DOMwrap);
+    }
+    this.opts = {
+      cleanup: opts.cleanUp
+    }
+    this.currentTimer = undefined;
+
+    // generate all of the events for Other Timers.
+    this.on('timer:delete', this.deleteTimer);
+    //
+  }
+
+  static genID(tg) {
+    if (!(tg instanceof this)) {
+      throw `${tg} is not an instance of ${this.name}`;
+    }
+    return Math.random().toString(36).slice(-6);
+  }
+
+  static createDOMCanvas(id) {
+    const base = document.createElement('div');
+    base.classList.add('timers-group', `${id}-group`);
+    base.id = `${id}-wrapper`;
+    return base;
+  }
+
+  delete(timer) {
+    let index = this.__timers.indexOf(timer)
+    if (!timer) {
+      timer = this.currentTimer;
+    }
+    if (timer.opts.ui) {
+      timer.theme.destroy();
+    }
+    this.__timers.splice(index, 1);
+    this.__currentTimer = this.__timers[index - 1];
+
+    return;
+  }
+
+  add(timer) {
+    if (timer instanceof this.constructor.Timer) {
+      this.__timers.push(timer);
+    } else {
+      return false;
+    }
+  }
+
+  newTimer(dur, label, opts = {
+    parent,
+    ui,
+    theme,
+    interval
+  }) {
+    let timer = new this.constructor.Timer(
+      dur, label, opts = {
+        parent: this,
+        ui: opts.ui,
+        theme: opts.theme,
+        interval: opts.interval
+      }
+    )
+    this.__timers.push(timer)
+    timer = this.__timers[this.__timers.indexOf(timer)]
+    this.currentTimer = timer;
+    return timer
+
+  }
+
+  timer(tID) {
+    return this.__timers[tID];
+  }
+
+  get currentTimer() {
+    if (!this.__currentTimer) {
+      if (this.__timers.length === 1) {
+        this.__currentTimer = this.__timers[0];
+        return this.__currentTimer;
+      }
+    } else {
+      return this.__currentTimer;
+    }
+  }
+
+  set currentTimer(t) {
+    this.__currentTimer = t;
+  }
+
+  get all() {
+    return this.__timers;
+  }
+
+  get events() {
+    return this._eventHandlers;
+  }
+
+
+}
+
+Object.assign(Timers.prototype, eventMixin);
+
+/**********
+ *** TIMERS GROUP CLASS ENDS
  **********/
 
 /*********
