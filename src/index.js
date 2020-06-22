@@ -239,10 +239,10 @@ class Timer {
     });
   }
 
-  static defaultTheme(parent) {
+  static defaultTheme(p) {
     return {
       uiTicker: undefined,
-      p: parent,
+      p: p,
       generate() {
         const base = document.createElement('div');
         base.classList.add('backstrip');
@@ -360,6 +360,7 @@ class Timers {
 
   constructor(opts = {
     ui: false,
+    theme: false,
     inject: String,
     cleanUp: false,
   }) {
@@ -511,21 +512,3 @@ const testTheme = () => {
     }
   }
 }
-
-// window.timers = new Timers(settings = {
-//   ui: true,
-//   inject: 'justacenteredwrapper'
-// });
-
-// const timer = new Timer('00:10', options = {
-//   type: 'bar',
-//   parent: window.timers,
-//   ui: true,
-//   // theme: testTheme
-// });
-
-// const timer22 = new Timer('01:15', options = {
-//   type: 'bar',
-//   parent: window.timers,
-//   ui: true
-// });
